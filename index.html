@@ -259,8 +259,8 @@
     return null;
   }
 
-  // Używamy aktualnego punktu końcowego gemini-2.5-flash
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey.trim()}`;
+  // Domyślny, stabilny model z wysokimi limitami w darmowym API
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.apiKey.trim()}`;
   
   try {
     const res = await fetch(url, {
