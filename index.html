@@ -253,46 +253,41 @@
     }
 
     async function callGemini(prompt) {
-      if (!state.apiKey) {
-        alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
-        openModal('settings-modal');
-        return null;
-      }
+  if (!state.apiKey) {
+    alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
+    openModal('settings-modal');
+    return null;
+  }
 
-      // Używamy modelu gemini-1.5-flash posiadającego wysokie limity darmowe
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.apiKey.trim()}`;
-      
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-          })
-        });
+  // Używamy aktualnego punktu końcowego gemini-2.5-flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey.trim()}`;
+  
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
 
-        if (res.status === 429) {
-          alert("Przekroczono darmowy limit zapapytań (Błąd 429). Odczekaj około 1 minutę i spróbuj ponownie.");
-          return null;
-        }
-
-        if (!res.ok) {
-          const errText = await res.text();
-          alert(`Błąd API (${res.status}): Sprawdź poprawność klucza w ustawieniach.`);
-          console.error(errText);
-          return null;
-        }
-
-        const data = await res.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        return JSON.parse(rawText);
-      } catch (err) {
-        alert("Błąd połączenia lub przetwarzania odpowiedzi przez AI.");
-        console.error(err);
-        return null;
-      }
+    if (!res.ok) {
+      const errText = await res.text();
+      alert(`Błąd API (${res.status}): ${errText}`);
+      console.error(errText);
+      return null;
     }
+
+    const data = await res.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return JSON.parse(rawText);
+  } catch (err) {
+    alert("Błąd połączenia lub przetwarzania odpowiedzi przez AI.");
+    console.error(err);
+    return null;
+  }
+}
 
     async function calculateAllWithAI() {
       document.getElementById('loading-spinner').style.display = 'block';
