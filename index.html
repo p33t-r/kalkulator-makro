@@ -251,32 +251,51 @@
         closeModal('settings-modal');
       }
     }
-
+   
     async function callGemini(prompt) {
-      if (!state.apiKey) {
-        alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
-        openModal('settings-modal');
-        return null;
-      }
+  if (!state.apiKey) {
+    alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
+    openModal('settings-modal');
+    return null;
+  }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`;
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-          })
-        });
-        const data = await res.json();
-        return JSON.parse(data.candidates[0].content.parts[0].text);
-      } catch (err) {
-        alert("Błąd połączenia z Gemini API. Sprawdź klucz API.");
-        console.error(err);
-        return null;
-      }
+  // Używamy najbardziej niezawodnego modelu: gemini-2.0-flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey.trim()}`;
+  
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { 
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Szczegóły błędu Google API:", errText);
+      alert(`Błąd Google API (${res.status}): Przeczytaj szczegóły w konsoli lub sprawdź klucz. Opis: ${errText.substring(0, 150)}...`);
+      return null;
     }
+
+    const data = await res.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!rawText) {
+      alert("Odpowiedź z API jest pusta.");
+      return null;
+    }
+
+    return JSON.parse(rawText);
+  } catch (err) {
+    alert("Błąd połączenia z siecią lub nieprawidłowy format odpowiedzi JSON.");
+    console.error(err);
+    return null;
+  }
+}
 
     async function calculateAllWithAI() {
       document.getElementById('loading-spinner').style.display = 'block';
