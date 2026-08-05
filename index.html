@@ -43,7 +43,8 @@
     .profile-grid .full-width { grid-column: span 2; }
     .profile-details { display: none; margin-top: 10px; border-top: 1px solid var(--card-border); padding-top: 10px; }
     .toggle-profile-btn { background: transparent; border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 4px 0; font-weight: 500; }
-    .manual-target-box { background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--card-border); }
+    .manual-target-box { background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--card-border); }
+    .manual-macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
 
     /* Meal Section */
     .meal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
@@ -92,16 +93,34 @@
 
     <!-- Hidden Profile & Targets Inputs -->
     <div class="profile-details" id="profile-details">
-      <!-- Manual Calorie Target Entry -->
+      <!-- Manual Target Entry Box -->
       <div class="manual-target-box">
-        <label style="font-size: 12px; color: var(--text-muted);">Ustaw ręcznie cel kaloryczny (Kcal):</label>
+        <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Ustaw cel ręcznie:</label>
+        
         <div style="display: flex; gap: 6px; margin-top: 6px;">
-          <input type="number" id="manual-kcal-input" placeholder="np. 2200">
-          <button class="btn btn-sm" onclick="setManualCalorieTarget()">Ustaw i przelicz makro</button>
+          <input type="number" id="manual-kcal-input" placeholder="Kcal">
+          <button class="btn btn-sm" onclick="setManualCalorieTarget()">Przelicz makro z kalorii</button>
         </div>
+
+        <div class="manual-macro-grid">
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted);">Białko (g)</label>
+            <input type="number" id="manual-p-input" placeholder="g">
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted);">Tłuszcze (g)</label>
+            <input type="number" id="manual-f-input" placeholder="g">
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted);">Węgle (g)</label>
+            <input type="number" id="manual-c-input" placeholder="g">
+          </div>
+        </div>
+
+        <button class="btn btn-sm" style="width: 100%; margin-top: 8px; background: var(--card-border);" onclick="saveManualFullTargets()">Zapisz cele ręcznie 💾</button>
       </div>
 
-      <div style="text-align: center; margin: 10px 0; font-size: 12px; color: var(--text-muted);">— LUB oblicz zapotrzebowanie z AI —</div>
+      <div style="text-align: center; margin: 12px 0 6px; font-size: 12px; color: var(--text-muted);">— LUB oblicz zapotrzebowanie z AI —</div>
 
       <div class="profile-grid">
         <div class="form-group">
@@ -284,12 +303,34 @@
       toggleProfile();
     }
 
+    function saveManualFullTargets() {
+      const kcal = parseFloat(document.getElementById('manual-kcal-input').value) || 0;
+      const p = parseFloat(document.getElementById('manual-p-input').value) || 0;
+      const f = parseFloat(document.getElementById('manual-f-input').value) || 0;
+      const c = parseFloat(document.getElementById('manual-c-input').value) || 0;
+
+      if (!kcal || !p || !f || !c) {
+        alert("Wypełnij wszystkie pola dla kalorii oraz białka, tłuszczu i węglowodanów!");
+        return;
+      }
+
+      state.targets = { kcal, p, f, c };
+      localStorage.setItem('macro_targets', JSON.stringify(state.targets));
+      renderTargets();
+      renderMeals();
+      toggleProfile();
+    }
+
     function renderTargets() {
       document.getElementById('target-kcal').innerText = `/ ${state.targets.kcal}`;
       document.getElementById('target-p').innerText = `/ ${state.targets.p}g`;
       document.getElementById('target-f').innerText = `/ ${state.targets.f}g`;
       document.getElementById('target-c').innerText = `/ ${state.targets.c}g`;
+
       document.getElementById('manual-kcal-input').value = state.targets.kcal;
+      document.getElementById('manual-p-input').value = state.targets.p;
+      document.getElementById('manual-f-input').value = state.targets.f;
+      document.getElementById('manual-c-input').value = state.targets.c;
     }
 
     function updateIngredientsDatalist() {
@@ -440,7 +481,6 @@
         }
       });
 
-      // Keep last 30 entries in history
       state.mealsHistory = state.mealsHistory.slice(0, 30);
       localStorage.setItem('meals_history', JSON.stringify(state.mealsHistory));
     }
