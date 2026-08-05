@@ -259,8 +259,8 @@
     return null;
   }
 
-  // Wersja v1 i model gemini-2.0-flash to obecnie standard dla nowych kluczy API
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${state.apiKey.trim()}`;
+  // Wersja v1beta ze stabilnym modelem gemini-1.5-flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.apiKey.trim()}`;
   
   try {
     const res = await fetch(url, {
@@ -269,7 +269,7 @@
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { 
-          responseMimeType: "application/json" 
+          responseMimeType: "application/json"
         }
       })
     });
