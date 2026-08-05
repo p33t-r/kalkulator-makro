@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulator Makro AI</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 12px; max-width: 600px; margin: 0 auto; padding-bottom: 40px; }
+
+    h1, h2, h3 { font-weight: 600; margin-bottom: 8px; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+
+    /* API Key Modal & Settings */
+    .settings-btn { position: fixed; top: 12px; right: 12px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; z-index: 10; }
+    
+    /* Top Summary */
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; margin-top: 12px; }
+    .summary-box { background: #0f172a; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border); }
+    .summary-val { font-size: 16px; font-weight: bold; color: var(--accent); }
+    .summary-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+    .target-val { font-size: 10px; color: var(--text-muted); }
+
+    /* Meal Section */
+    .meal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .meal-macro { font-size: 12px; color: var(--success); font-weight: 500; }
+    
+    .item-row { display: grid; grid-template-columns: 1fr 70px 80px 32px; gap: 6px; margin-bottom: 8px; align-items: center; }
+    input, select, button { background: #0f172a; border: 1px solid var(--card-border); color: var(--text); padding: 8px 10px; border-radius: 8px; font-size: 14px; outline: none; }
+    input:focus, select:focus { border-color: var(--accent); }
+    
+    .btn { background: var(--accent); color: white; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .btn:active { background: var(--accent-hover); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-add { background: transparent; border: 1px dashed var(--accent); color: var(--accent); width: 100%; margin-top: 6px; }
+    .btn-remove { background: transparent; border: none; color: var(--danger); font-size: 18px; cursor: pointer; padding: 0; }
+    .btn-calc { background: var(--success); width: 100%; margin-top: 12px; padding: 12px; font-size: 16px; }
+
+    /* Modal Base */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+    .modal-content { background: var(--card-bg); border-radius: 12px; padding: 20px; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .form-group input, .form-group select { width: 100%; }
+
+    .loading { display: none; text-align: center; font-size: 14px; color: var(--accent); margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <button class="settings-btn" onclick="openModal('settings-modal')">⚙️</button>
+
+  <!-- Summary Card -->
+  <div class="card">
+    <h2>Podsumowanie Dnia</h2>
+    <div class="summary-grid">
+      <div class="summary-box">
+        <div class="summary-label">Kcal</div>
+        <div class="summary-val" id="sum-kcal">0</div>
+        <div class="target-val" id="target-kcal">/ 0</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">Białko</div>
+        <div class="summary-val" id="sum-p">0g</div>
+        <div class="target-val" id="target-p">/ 0g</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">Tłuszcze</div>
+        <div class="summary-val" id="sum-f">0g</div>
+        <div class="target-val" id="target-f">/ 0g</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">Węgle</div>
+        <div class="summary-val" id="sum-c">0g</div>
+        <div class="target-val" id="target-c">/ 0g</div>
+      </div>
+    </div>
+    <button class="btn btn-sm" style="margin-top: 10px; width: 100%;" onclick="openModal('profile-modal')">Ustaw Cele z AI 🎯</button>
+  </div>
+
+  <!-- Meals Container -->
+  <div id="meals-container"></div>
+
+  <button class="btn btn-calc" onclick="calculateAllWithAI()">Przelicz wszystko z AI ✨</button>
+  <div class="loading" id="loading-spinner">AI analizuje Twoje posiłki... ⏳</div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settings-modal">
+    <div class="modal-content">
+      <h3>Ustawienia API</h3>
+      <div class="form-group" style="margin-top: 12px;">
+        <label>Twój Klucz Gemini API:</label>
+        <input type="password" id="api-key-input" placeholder="Wklej klucz API...">
+      </div>
+      <button class="btn" style="width: 100%; margin-top: 10px;" onclick="saveApiKey()">Zapisz Klucz</button>
+      <button class="btn" style="width: 100%; margin-top: 6px; background: transparent; border: 1px solid var(--card-border);" onclick="closeModal('settings-modal')">Zamknij</button>
+    </div>
+  </div>
+
+  <!-- Profile Modal (Target Calculation) -->
+  <div class="modal" id="profile-modal">
+    <div class="modal-content">
+      <h3>Oblicz Cele Makro (AI)</h3>
+      <div class="form-group" style="margin-top: 12px;">
+        <label>Płeć</label>
+        <select id="prof-gender"><option value="mężczyzna">Mężczyzna</option><option value="kobieta">Kobieta</option></select>
+      </div>
+      <div class="form-group">
+        <label>Wiek</label>
+        <input type="number" id="prof-age" value="30">
+      </div>
+      <div class="form-group">
+        <label>Wzrost (cm)</label>
+        <input type="number" id="prof-height" value="180">
+      </div>
+      <div class="form-group">
+        <label>Waga (kg)</label>
+        <input type="number" id="prof-weight" value="80">
+      </div>
+      <div class="form-group">
+        <label>Intensywność treningów / Cel</label>
+        <input type="text" id="prof-goal" placeholder="np. 3x trening siłowy, redukcja">
+      </div>
+      <button class="btn" style="width: 100%; margin-top: 10px;" onclick="calculateTargetsWithAI()">Wylicz cele przez AI</button>
+      <button class="btn" style="width: 100%; margin-top: 6px; background: transparent; border: 1px solid var(--card-border);" onclick="closeModal('profile-modal')">Zamknij</button>
+    </div>
+  </div>
+
+  <script>
+    const MEALS_CONFIG = [
+      { id: 'breakfast', name: 'Śniadanie', defaultCount: 4 },
+      { id: 'lunch', name: 'Obiad', defaultCount: 4 },
+      { id: 'dinner', name: 'Kolacja', defaultCount: 4 },
+      { id: 'snacks', name: 'Przekąski / Napoje / Inne', defaultCount: 3 }
+    ];
+
+    const UNITS = ['g', 'szt', 'ml', 'plaster', 'łyżka', 'szklanka', 'porcja'];
+
+    let state = {
+      apiKey: localStorage.getItem('gemini_api_key') || '',
+      targets: JSON.parse(localStorage.getItem('macro_targets')) || { kcal: 2000, p: 150, f: 70, c: 200 },
+      meals: JSON.parse(localStorage.getItem('daily_meals_data')) || {}
+    };
+
+    function init() {
+      if (!state.apiKey) openModal('settings-modal');
+      renderTargets();
+      renderMeals();
+    }
+
+    function renderTargets() {
+      document.getElementById('target-kcal').innerText = `/ ${state.targets.kcal}`;
+      document.getElementById('target-p').innerText = `/ ${state.targets.p}g`;
+      document.getElementById('target-f').innerText = `/ ${state.targets.f}g`;
+      document.getElementById('target-c').innerText = `/ ${state.targets.c}g`;
+    }
+
+    function renderMeals() {
+      const container = document.getElementById('meals-container');
+      container.innerHTML = '';
+
+      let dayTotal = { kcal: 0, p: 0, f: 0, c: 0 };
+
+      MEALS_CONFIG.forEach(mealCfg => {
+        if (!state.meals[mealCfg.id]) {
+          state.meals[mealCfg.id] = Array.from({ length: mealCfg.defaultCount }, () => ({ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0 }));
+        }
+
+        const mealData = state.meals[mealCfg.id];
+        let mealTotal = { kcal: 0, p: 0, f: 0, c: 0 };
+
+        mealData.forEach(item => {
+          mealTotal.kcal += item.kcal || 0;
+          mealTotal.p += item.p || 0;
+          mealTotal.f += item.f || 0;
+          mealTotal.c += item.c || 0;
+        });
+
+        dayTotal.kcal += mealTotal.kcal;
+        dayTotal.p += mealTotal.p;
+        dayTotal.f += mealTotal.f;
+        dayTotal.c += mealTotal.c;
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="meal-header">
+            <h3>${mealCfg.name}</h3>
+            <div class="meal-macro">${Math.round(mealTotal.kcal)} kcal | B:${Math.round(mealTotal.p)}g T:${Math.round(mealTotal.f)}g W:${Math.round(mealTotal.c)}g</div>
+          </div>
+          <div id="items-${mealCfg.id}">
+            ${mealData.map((item, idx) => `
+              <div class="item-row">
+                <input type="text" placeholder="Składnik (np. surówka z pora)" value="${item.name}" onchange="updateItem('${mealCfg.id}', ${idx}, 'name', this.value)">
+                <input type="number" placeholder="Ilość" value="${item.amount}" onchange="updateItem('${mealCfg.id}', ${idx}, 'amount', this.value)">
+                <select onchange="updateItem('${mealCfg.id}', ${idx}, 'unit', this.value)">
+                  ${UNITS.map(u => `<option value="${u}" ${item.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
+                </select>
+                <button class="btn-remove" onclick="removeItem('${mealCfg.id}', ${idx})">✕</button>
+              </div>
+            `).join('')}
+          </div>
+          <button class="btn btn-add" onclick="addItem('${mealCfg.id}')">+ Dodaj pole</button>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('sum-kcal').innerText = Math.round(dayTotal.kcal);
+      document.getElementById('sum-p').innerText = Math.round(dayTotal.p) + 'g';
+      document.getElementById('sum-f').innerText = Math.round(dayTotal.f) + 'g';
+      document.getElementById('sum-c').innerText = Math.round(dayTotal.c) + 'g';
+
+      localStorage.setItem('daily_meals_data', JSON.stringify(state.meals));
+    }
+
+    function updateItem(mealId, idx, field, value) {
+      state.meals[mealId][idx][field] = field === 'amount' ? parseFloat(value) || '' : value;
+      localStorage.setItem('daily_meals_data', JSON.stringify(state.meals));
+    }
+
+    function addItem(mealId) {
+      state.meals[mealId].push({ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0 });
+      renderMeals();
+    }
+
+    function removeItem(mealId, idx) {
+      state.meals[mealId].splice(idx, 1);
+      renderMeals();
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function saveApiKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (key) {
+        state.apiKey = key;
+        localStorage.setItem('gemini_api_key', key);
+        closeModal('settings-modal');
+      }
+    }
+
+    async function callGemini(prompt) {
+      if (!state.apiKey) {
+        alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
+        openModal('settings-modal');
+        return null;
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+        const data = await res.json();
+        return JSON.parse(data.candidates[0].content.parts[0].text);
+      } catch (err) {
+        alert("Błąd połączenia z Gemini API. Sprawdź klucz API.");
+        console.error(err);
+        return null;
+      }
+    }
+
+    async function calculateAllWithAI() {
+      document.getElementById('loading-spinner').style.display = 'block';
+      
+      let itemsToAnalyze = [];
+      MEALS_CONFIG.forEach(meal => {
+        state.meals[meal.id].forEach((item, idx) => {
+          if (item.name && item.amount) {
+            itemsToAnalyze.push({ mealId: meal.id, idx: idx, query: `${item.amount} ${item.unit} ${item.name}` });
+          }
+        });
+      });
+
+      if (itemsToAnalyze.length === 0) {
+        document.getElementById('loading-spinner').style.display = 'none';
+        alert("Wpisz przynajmniej jeden składnik i jego ilość!");
+        return;
+      }
+
+      const prompt = `Przeanalizuj listę składników i oszacuj wartości odżywcze. Jeśli podano konkretną markę lub sklep (np. Biedronka), uwzględnij to.
+      
+      Lista produktów:
+      ${JSON.stringify(itemsToAnalyze)}
+      
+      Zwróć tablicę JSON z dokładnie taką samą strukturą, dodając wartości: kcal, p (białko w g), f (tłuszcze w g), c (węglowodany w g).
+      Format odpowiedzi JSON:
+      [
+        {"mealId": "...", "idx": 0, "kcal": 150, "p": 10, "f": 5, "c": 15}
+      ]`;
+
+      const result = await callGemini(prompt);
+      document.getElementById('loading-spinner').style.display = 'none';
+
+      if (result && Array.isArray(result)) {
+        result.forEach(res => {
+          if (state.meals[res.mealId] && state.meals[res.mealId][res.idx]) {
+            state.meals[res.mealId][res.idx].kcal = res.kcal || 0;
+            state.meals[res.mealId][res.idx].p = res.p || 0;
+            state.meals[res.mealId][res.idx].f = res.f || 0;
+            state.meals[res.mealId][res.idx].c = res.c || 0;
+          }
+        });
+        renderMeals();
+      }
+    }
+
+    async function calculateTargetsWithAI() {
+      const gender = document.getElementById('prof-gender').value;
+      const age = document.getElementById('prof-age').value;
+      const height = document.getElementById('prof-height').value;
+      const weight = document.getElementById('prof-weight').value;
+      const goal = document.getElementById('prof-goal').value;
+
+      const prompt = `Na podstawie poniższych danych wylicz dzienne zapotrzebowanie kaloryczne oraz makroskładniki (białko, tłuszcze, węglowodany):
+      Płeć: ${gender}, Wiek: ${age}, Wzrost: ${height}cm, Waga: ${weight}kg, Cel/Trening: ${goal}.
+
+      Zwróć odpowiedź w formacie JSON:
+      {"kcal": 2200, "p": 160, "f": 70, "c": 230}`;
+
+      const result = await callGemini(prompt);
+      if (result && result.kcal) {
+        state.targets = result;
+        localStorage.setItem('macro_targets', JSON.stringify(state.targets));
+        renderTargets();
+        closeModal('profile-modal');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
