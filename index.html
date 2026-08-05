@@ -15,6 +15,7 @@
       --text-muted: #94a3b8;
       --success: #10b981;
       --danger: #ef4444;
+      --warning: #f59e0b;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -26,12 +27,22 @@
     /* API Key Modal & Settings */
     .settings-btn { position: fixed; top: 12px; right: 12px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; z-index: 10; }
     
-    /* Top Summary */
+    /* Top Summary - Circular Gauges */
     .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; margin-top: 12px; }
-    .summary-box { background: #0f172a; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border); }
-    .summary-val { font-size: 16px; font-weight: bold; color: var(--accent); }
-    .summary-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
-    .target-val { font-size: 10px; color: var(--text-muted); }
+    .gauge-box { background: #0f172a; padding: 10px 4px; border-radius: 12px; border: 1px solid var(--card-border); display: flex; flex-direction: column; align-items: center; }
+    .gauge-container { position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }
+    .gauge-svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+    .gauge-bg { fill: none; stroke: var(--card-border); stroke-width: 3.8; }
+    .gauge-fill { fill: none; stroke-width: 3.8; stroke-linecap: round; transition: stroke-dasharray 0.5s ease, stroke 0.3s ease; }
+    .gauge-text { position: absolute; font-size: 11px; font-weight: bold; color: var(--text); }
+    .summary-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .target-val { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    /* Profile Section on Main Page */
+    .profile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+    .profile-grid .full-width { grid-column: span 2; }
+    .profile-details { display: none; margin-top: 10px; border-top: 1px solid var(--card-border); padding-top: 10px; }
+    .toggle-profile-btn { background: transparent; border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 4px 0; font-weight: 500; }
 
     /* Meal Section */
     .meal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -50,7 +61,7 @@
 
     /* Modal Base */
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
-    .modal-content { background: var(--card-bg); border-radius: 12px; padding: 20px; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
+    .modal-content { background: var(--card-bg); border-radius: 12px; padding: 20px; width: 100%; max-width: 450px; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
     .form-group input, .form-group select { width: 100%; }
@@ -62,32 +73,97 @@
 
   <button class="settings-btn" onclick="openModal('settings-modal')">⚙️</button>
 
-  <!-- Summary Card -->
+  <!-- Profile & Targets Card -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Moje Cele i Profil</h2>
+      <button class="toggle-profile-btn" onclick="toggleProfile()">Edytuj profil ✏️</button>
+    </div>
+
+    <!-- Hidden Profile Inputs -->
+    <div class="profile-details" id="profile-details">
+      <div class="profile-grid">
+        <div class="form-group">
+          <label>Płeć</label>
+          <select id="prof-gender"><option value="mężczyzna">Mężczyzna</option><option value="kobieta">Kobieta</option></select>
+        </div>
+        <div class="form-group">
+          <label>Wiek</label>
+          <input type="number" id="prof-age" value="30">
+        </div>
+        <div class="form-group">
+          <label>Wzrost (cm)</label>
+          <input type="number" id="prof-height" value="180">
+        </div>
+        <div class="form-group">
+          <label>Waga (kg)</label>
+          <input type="number" id="prof-weight" value="80">
+        </div>
+        <div class="form-group full-width">
+          <label>Intensywność treningów / Cel</label>
+          <input type="text" id="prof-goal" placeholder="np. 3x trening siłowy, redukcja">
+        </div>
+      </div>
+      <button class="btn btn-sm" style="width: 100%; margin-top: 6px;" onclick="calculateTargetsWithAI()">Oblicz cele z AI 🎯</button>
+    </div>
+  </div>
+
+  <!-- Summary Card with Gauges -->
   <div class="card">
     <h2>Podsumowanie Dnia</h2>
     <div class="summary-grid">
-      <div class="summary-box">
+      <!-- Kcal Gauge -->
+      <div class="gauge-box">
         <div class="summary-label">Kcal</div>
-        <div class="summary-val" id="sum-kcal">0</div>
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 36 36">
+            <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="gauge-fill" id="gauge-fill-kcal" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          </svg>
+          <div class="gauge-text" id="sum-kcal">0</div>
+        </div>
         <div class="target-val" id="target-kcal">/ 0</div>
       </div>
-      <div class="summary-box">
+
+      <!-- Protein Gauge -->
+      <div class="gauge-box">
         <div class="summary-label">Białko</div>
-        <div class="summary-val" id="sum-p">0g</div>
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 36 36">
+            <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="gauge-fill" id="gauge-fill-p" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          </svg>
+          <div class="gauge-text" id="sum-p">0g</div>
+        </div>
         <div class="target-val" id="target-p">/ 0g</div>
       </div>
-      <div class="summary-box">
+
+      <!-- Fat Gauge -->
+      <div class="gauge-box">
         <div class="summary-label">Tłuszcze</div>
-        <div class="summary-val" id="sum-f">0g</div>
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 36 36">
+            <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="gauge-fill" id="gauge-fill-f" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          </svg>
+          <div class="gauge-text" id="sum-f">0g</div>
+        </div>
         <div class="target-val" id="target-f">/ 0g</div>
       </div>
-      <div class="summary-box">
+
+      <!-- Carbs Gauge -->
+      <div class="gauge-box">
         <div class="summary-label">Węgle</div>
-        <div class="summary-val" id="sum-c">0g</div>
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 36 36">
+            <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="gauge-fill" id="gauge-fill-c" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          </svg>
+          <div class="gauge-text" id="sum-c">0g</div>
+        </div>
         <div class="target-val" id="target-c">/ 0g</div>
       </div>
     </div>
-    <button class="btn btn-sm" style="margin-top: 10px; width: 100%;" onclick="openModal('profile-modal')">Ustaw Cele z AI 🎯</button>
   </div>
 
   <!-- Meals Container -->
@@ -109,41 +185,12 @@
     </div>
   </div>
 
-  <!-- Profile Modal (Target Calculation) -->
-  <div class="modal" id="profile-modal">
-    <div class="modal-content">
-      <h3>Oblicz Cele Makro (AI)</h3>
-      <div class="form-group" style="margin-top: 12px;">
-        <label>Płeć</label>
-        <select id="prof-gender"><option value="mężczyzna">Mężczyzna</option><option value="kobieta">Kobieta</option></select>
-      </div>
-      <div class="form-group">
-        <label>Wiek</label>
-        <input type="number" id="prof-age" value="30">
-      </div>
-      <div class="form-group">
-        <label>Wzrost (cm)</label>
-        <input type="number" id="prof-height" value="180">
-      </div>
-      <div class="form-group">
-        <label>Waga (kg)</label>
-        <input type="number" id="prof-weight" value="80">
-      </div>
-      <div class="form-group">
-        <label>Intensywność treningów / Cel</label>
-        <input type="text" id="prof-goal" placeholder="np. 3x trening siłowy, redukcja">
-      </div>
-      <button class="btn" style="width: 100%; margin-top: 10px;" onclick="calculateTargetsWithAI()">Wylicz cele przez AI</button>
-      <button class="btn" style="width: 100%; margin-top: 6px; background: transparent; border: 1px solid var(--card-border);" onclick="closeModal('profile-modal')">Zamknij</button>
-    </div>
-  </div>
-
   <script>
     const MEALS_CONFIG = [
-      { id: 'breakfast', name: 'Śniadanie', defaultCount: 4 },
-      { id: 'lunch', name: 'Obiad', defaultCount: 4 },
-      { id: 'dinner', name: 'Kolacja', defaultCount: 4 },
-      { id: 'snacks', name: 'Przekąski / Napoje / Inne', defaultCount: 3 }
+      { id: 'breakfast', name: 'Śniadanie' },
+      { id: 'lunch', name: 'Obiad' },
+      { id: 'dinner', name: 'Kolacja' },
+      { id: 'snacks', name: 'Przekąski / Napoje / Inne' }
     ];
 
     const UNITS = ['g', 'szt', 'ml', 'plaster', 'łyżka', 'szklanka', 'porcja'];
@@ -160,11 +207,34 @@
       renderMeals();
     }
 
+    function toggleProfile() {
+      const el = document.getElementById('profile-details');
+      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    }
+
     function renderTargets() {
       document.getElementById('target-kcal').innerText = `/ ${state.targets.kcal}`;
       document.getElementById('target-p').innerText = `/ ${state.targets.p}g`;
       document.getElementById('target-f').innerText = `/ ${state.targets.f}g`;
       document.getElementById('target-c').innerText = `/ ${state.targets.c}g`;
+    }
+
+    function updateGauge(type, current, target) {
+      const fillEl = document.getElementById(`gauge-fill-${type}`);
+      if (!fillEl || !target) return;
+
+      const percent = Math.min(Math.round((current / target) * 100), 100);
+      fillEl.setAttribute('stroke-dasharray', `${percent}, 100`);
+
+      // Dynamic Color Coding
+      const ratio = current / target;
+      if (ratio > 1.15) {
+        fillEl.style.stroke = 'var(--danger)'; // Over target > 115%
+      } else if (ratio >= 0.85 && ratio <= 1.15) {
+        fillEl.style.stroke = 'var(--success)'; // Perfect target ~100%
+      } else {
+        fillEl.style.stroke = 'var(--accent)'; // Progressing
+      }
     }
 
     function renderMeals() {
@@ -174,8 +244,9 @@
       let dayTotal = { kcal: 0, p: 0, f: 0, c: 0 };
 
       MEALS_CONFIG.forEach(mealCfg => {
-        if (!state.meals[mealCfg.id]) {
-          state.meals[mealCfg.id] = Array.from({ length: mealCfg.defaultCount }, () => ({ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0 }));
+        // Zostawiamy dokładnie 1 puste pole na start, jeśli brak danych
+        if (!state.meals[mealCfg.id] || state.meals[mealCfg.id].length === 0) {
+          state.meals[mealCfg.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0 }];
         }
 
         const mealData = state.meals[mealCfg.id];
@@ -203,7 +274,7 @@
           <div id="items-${mealCfg.id}">
             ${mealData.map((item, idx) => `
               <div class="item-row">
-                <input type="text" placeholder="Składnik (np. surówka z pora)" value="${item.name}" onchange="updateItem('${mealCfg.id}', ${idx}, 'name', this.value)">
+                <input type="text" placeholder="Składnik" value="${item.name}" onchange="updateItem('${mealCfg.id}', ${idx}, 'name', this.value)">
                 <input type="number" placeholder="Ilość" value="${item.amount}" onchange="updateItem('${mealCfg.id}', ${idx}, 'amount', this.value)">
                 <select onchange="updateItem('${mealCfg.id}', ${idx}, 'unit', this.value)">
                   ${UNITS.map(u => `<option value="${u}" ${item.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
@@ -217,10 +288,17 @@
         container.appendChild(card);
       });
 
+      // Update Summary Values
       document.getElementById('sum-kcal').innerText = Math.round(dayTotal.kcal);
       document.getElementById('sum-p').innerText = Math.round(dayTotal.p) + 'g';
       document.getElementById('sum-f').innerText = Math.round(dayTotal.f) + 'g';
       document.getElementById('sum-c').innerText = Math.round(dayTotal.c) + 'g';
+
+      // Update Gauges
+      updateGauge('kcal', dayTotal.kcal, state.targets.kcal);
+      updateGauge('p', dayTotal.p, state.targets.p);
+      updateGauge('f', dayTotal.f, state.targets.f);
+      updateGauge('c', dayTotal.c, state.targets.c);
 
       localStorage.setItem('daily_meals_data', JSON.stringify(state.meals));
     }
@@ -236,7 +314,12 @@
     }
 
     function removeItem(mealId, idx) {
-      state.meals[mealId].splice(idx, 1);
+      if (state.meals[mealId].length > 1) {
+        state.meals[mealId].splice(idx, 1);
+      } else {
+        // Reset single item instead of removing row completely
+        state.meals[mealId][0] = { name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0 };
+      }
       renderMeals();
     }
 
@@ -253,67 +336,47 @@
     }
 
     async function callGemini(prompt) {
-  if (!state.apiKey) {
-    alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
-    openModal('settings-modal');
-    return null;
-  }
-
-  const apiKey = state.apiKey.trim();
-  
-  // Aktualne nazwy modeli z generacji Gemini 3.x
-  const candidateModels = [
-    'gemini-3.6-flash',
-    'gemini-3.5-flash-lite'
-  ];
-
-  for (const model of candidateModels) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    
-    try {
-      console.log(`Próba połączenia z modelem: ${model}...`);
-      
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { 
-            responseMimeType: "application/json" 
-          }
-        })
-      });
-
-      if (res.status === 404) {
-        console.warn(`Model ${model} zwrócił 404 (brak dostępu/zła nazwa), sprawdzam kolejny...`);
-        continue;
-      }
-
-      if (!res.ok) {
-        const errText = await res.text();
-        if (res.status === 429) {
-          alert("Przekroczono limit zapytań (429). Odczekaj chwilę lub sprawdź limity w Google Cloud.");
-          return null;
-        }
-        alert(`Błąd API dla ${model} (${res.status}): ${errText}`);
+      if (!state.apiKey) {
+        alert("Brak klucza API! Wprowadź go w ustawieniach (ikona koła zębatego).");
+        openModal('settings-modal');
         return null;
       }
 
-      const data = await res.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const apiKey = state.apiKey.trim();
+      const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro'];
 
-      if (rawText) {
-        console.log(`Sukces! Odpowiedział model: ${model}`);
-        return JSON.parse(rawText);
+      for (const model of candidateModels) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          if (res.status === 404) continue;
+
+          if (!res.ok) {
+            const errText = await res.text();
+            alert(`Błąd API (${res.status}): ${errText}`);
+            return null;
+          }
+
+          const data = await res.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) return JSON.parse(rawText);
+        } catch (err) {
+          console.error(`Błąd z modelem ${model}:`, err);
+        }
       }
-    } catch (err) {
-      console.error(`Błąd przy zapytaniu do ${model}:`, err);
-    }
-  }
 
-  alert("Żaden z dostępnych modeli (3.6 Flash, 3.5 Flash-Lite, 3.1 Pro) nie odpowiada. Sprawdź opłaty/status klucza w Google AI Studio.");
-  return null;
-}
+      alert("Żaden z dostępnych modeli Gemini nie odpowiedział.");
+      return null;
+    }
 
     async function calculateAllWithAI() {
       document.getElementById('loading-spinner').style.display = 'block';
@@ -333,16 +396,10 @@
         return;
       }
 
-      const prompt = `Przeanalizuj listę składników i oszacuj wartości odżywcze. Jeśli podano konkretną markę lub sklep (np. Biedronka), uwzględnij to.
-      
-      Lista produktów:
-      ${JSON.stringify(itemsToAnalyze)}
-      
-      Zwróć tablicę JSON z dokładnie taką samą strukturą, dodając wartości: kcal, p (białko w g), f (tłuszcze w g), c (węglowodany w g).
+      const prompt = `Przeanalizuj listę składników i oszacuj wartości odżywcze. Zwróć tablicę JSON:
+      Lista produktów: ${JSON.stringify(itemsToAnalyze)}
       Format odpowiedzi JSON:
-      [
-        {"mealId": "...", "idx": 0, "kcal": 150, "p": 10, "f": 5, "c": 15}
-      ]`;
+      [{"mealId": "...", "idx": 0, "kcal": 150, "p": 10, "f": 5, "c": 15}]`;
 
       const result = await callGemini(prompt);
       document.getElementById('loading-spinner').style.display = 'none';
@@ -373,12 +430,16 @@
       Zwróć odpowiedź w formacie JSON:
       {"kcal": 2200, "p": 160, "f": 70, "c": 230}`;
 
+      document.getElementById('loading-spinner').style.display = 'block';
       const result = await callGemini(prompt);
+      document.getElementById('loading-spinner').style.display = 'none';
+
       if (result && result.kcal) {
         state.targets = result;
         localStorage.setItem('macro_targets', JSON.stringify(state.targets));
         renderTargets();
-        closeModal('profile-modal');
+        renderMeals();
+        toggleProfile();
       }
     }
 
