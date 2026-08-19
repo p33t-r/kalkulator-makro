@@ -21,7 +21,6 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     
-    /* Poprawka body: bezpieczne marginesy dla mobilnych ekranów */
     body { 
       background: var(--bg); 
       color: var(--text); 
@@ -34,7 +33,6 @@
 
     h1, h2, h3 { font-weight: 600; margin-bottom: 8px; }
     
-    /* Zabezpieczenie szerokości kart */
     .card { 
       background: var(--card-bg); 
       border: 1px solid var(--card-border); 
@@ -48,7 +46,7 @@
     .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .top-bar-btns { display: flex; gap: 8px; }
     
-    /* Summary - Circular Gauges Grid (Naprawione zachowanie mobilne) */
+    /* Summary - Circular Gauges Grid */
     .summary-grid { 
       display: grid; 
       grid-template-columns: repeat(5, 1fr); 
@@ -104,11 +102,11 @@
     
     .item-card { background: #0f172a; border: 1px solid var(--card-border); border-radius: 8px; padding: 8px; margin-bottom: 8px; width: 100%; }
     
-    /* Poprawiony wiersz przedmiotu – elastyczne dopasowanie do ekranów telefonów */
+    /* Elastyczny wiersz przedmiotu */
     .item-main-row { 
       display: grid; 
-      grid-template-columns: minmax(100px, 2fr) minmax(50px, 1fr) minmax(55px, 1fr) 24px 24px; 
-      gap: 4px; 
+      grid-template-columns: minmax(80px, 2fr) 26px minmax(45px, 1fr) minmax(50px, 1fr) 22px 22px; 
+      gap: 3px; 
       align-items: center; 
       width: 100%;
     }
@@ -128,13 +126,18 @@
     
     .manual-override-box { 
       display: none; 
-      grid-template-columns: repeat(5, 1fr); 
-      gap: 4px; 
+      flex-direction: column;
+      gap: 6px; 
       margin-top: 6px; 
       padding-top: 6px; 
       border-top: 1px dashed var(--card-border); 
     }
-    .manual-override-box input { padding: 4px 2px; font-size: 11px; text-align: center; }
+    .manual-override-inputs {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+    .manual-override-box input, .manual-override-box select { padding: 4px 2px; font-size: 10px; text-align: center; }
 
     input, select, button { 
       background: #0f172a; 
@@ -147,15 +150,17 @@
       width: 100%; 
       min-width: 0;
     }
+    input:disabled, select:disabled { opacity: 0.6; cursor: not-allowed; background: #1e293b; }
     input:focus, select:focus { border-color: var(--accent); }
     
     .btn { background: var(--accent); color: white; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; padding: 8px; }
     .btn:active { background: var(--accent-hover); }
     .btn-sm { padding: 6px 8px; font-size: 11px; }
     .btn-add { background: transparent; border: 1px dashed var(--accent); color: var(--accent); width: 100%; margin-top: 4px; }
-    .btn-icon { background: transparent; border: none; font-size: 15px; cursor: pointer; padding: 0; display: flex; justify-content: center; align-items: center; height: 100%; }
+    .btn-icon { background: transparent; border: none; font-size: 14px; cursor: pointer; padding: 0; display: flex; justify-content: center; align-items: center; height: 100%; }
     .btn-remove { color: var(--danger); }
     .btn-edit-item { color: var(--warning); }
+    .btn-preset-pick { color: var(--accent); }
     .btn-reset-meal { background: transparent; border: 1px solid var(--card-border); color: var(--text-muted); padding: 4px 6px; font-size: 10px; }
     .btn-history-meal { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 4px 6px; font-size: 10px; }
     
@@ -181,14 +186,14 @@
 
     .loading { display: none; text-align: center; font-size: 13px; color: var(--accent); margin-top: 10px; }
 
-    /* Specjalne dostosowania dla ekranów poniżej 380px */
     @media (max-width: 380px) {
       .gauge-container { width: 38px; height: 38px; }
       .gauge-text { font-size: 8px; }
       .summary-label { font-size: 8px; }
       .target-val { font-size: 7px; }
-      .item-main-row { grid-template-columns: minmax(80px, 2fr) minmax(40px, 1fr) minmax(50px, 1fr) 20px 20px; }
+      .item-main-row { grid-template-columns: minmax(70px, 2fr) 22px minmax(40px, 1fr) minmax(45px, 1fr) 18px 18px; }
       .manual-macro-grid { grid-template-columns: repeat(2, 1fr); }
+      .manual-override-inputs { grid-template-columns: repeat(4, 1fr); }
     }
   </style>
 </head>
@@ -344,6 +349,16 @@
   </div>
   <div class="loading" id="loading-spinner">AI analizuje Twoje posiłki i składniki... ⏳</div>
 
+  <!-- Modal Pick Saved Preset Item -->
+  <div class="modal" id="presets-modal">
+    <div class="modal-content">
+      <h3>Zapisane Składniki w Pamięci</h3>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Wybierz składnik ze zdefiniowanym makro:</p>
+      <div id="presets-list"></div>
+      <button class="btn" style="width: 100%; margin-top: 10px; background: transparent; border: 1px solid var(--card-border);" onclick="closeModal('presets-modal')">Zamknij</button>
+    </div>
+  </div>
+
   <!-- Chart & History Modal -->
   <div class="modal" id="history-chart-modal">
     <div class="modal-content">
@@ -398,13 +413,14 @@
       targets: JSON.parse(localStorage.getItem('macro_targets')) || { kcal: 2000, p: 150, f: 70, c: 200, fib: 30 },
       meals: JSON.parse(localStorage.getItem('daily_meals_data')) || {},
       customIngredients: JSON.parse(localStorage.getItem('custom_ingredients_list')) || [],
+      savedPresets: JSON.parse(localStorage.getItem('saved_presets_db')) || {}, // nowa baza danych zapamiętanych makroskładników
       mealsHistory: JSON.parse(localStorage.getItem('meals_history')) || [],
       dailyHistory: JSON.parse(localStorage.getItem('daily_history')) || []
     };
 
     let activeHistoryMealId = null;
+    let activeTargetPicker = null; // { mealId, idx }
 
-    // Funkcje pobierania daty i automatycznego czyszczenia przy zmianie dnia
     function getTodayDateString() {
       const today = new Date();
       const year = today.getFullYear();
@@ -418,9 +434,8 @@
       const lastActiveDate = localStorage.getItem('last_active_date');
 
       if (lastActiveDate !== today) {
-        // Nowy dzień: czyścimy wpisane produkty dla posiłków
         MEALS_CONFIG.forEach(m => {
-          state.meals[m.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false }];
+          state.meals[m.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false }];
         });
         localStorage.setItem('daily_meals_data', JSON.stringify(state.meals));
         localStorage.setItem('last_active_date', today);
@@ -434,11 +449,11 @@
 
       MEALS_CONFIG.forEach(mealCfg => {
         if (!state.meals[mealCfg.id] || !Array.isArray(state.meals[mealCfg.id])) {
-          state.meals[mealCfg.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false }];
+          state.meals[mealCfg.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false }];
         } else {
           state.meals[mealCfg.id] = state.meals[mealCfg.id].filter(item => item.name || item.amount);
           if (state.meals[mealCfg.id].length === 0) {
-            state.meals[mealCfg.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false }];
+            state.meals[mealCfg.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false }];
           }
         }
       });
@@ -449,7 +464,6 @@
       renderHistoryAndChart();
     }
 
-    // Wykrywanie powrotu do karty (np. po nocy bez odświeżania strony)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         checkAndResetDailyData();
@@ -587,11 +601,12 @@
               <div class="item-card">
                 <div class="item-main-row">
                   <input type="text" list="saved-ingredients-list" placeholder="Składnik" value="${item.name}" onchange="updateItem('${mealCfg.id}', ${idx}, 'name', this.value)">
+                  <button class="btn-icon btn-preset-pick" title="Wybierz zapisany składnik" onclick="openPresetsModal('${mealCfg.id}', ${idx})">📖</button>
                   <input type="number" placeholder="Ilość" value="${item.amount}" onchange="updateItem('${mealCfg.id}', ${idx}, 'amount', this.value)">
-                  <select onchange="updateItem('${mealCfg.id}', ${idx}, 'unit', this.value)">
+                  <select ${item.locked ? 'disabled' : ''} onchange="updateItem('${mealCfg.id}', ${idx}, 'unit', this.value)">
                     ${UNITS.map(u => `<option value="${u}" ${item.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
                   </select>
-                  <button class="btn-icon btn-edit-item" title="Ręczne Makro" onclick="toggleManualBox('${mealCfg.id}', ${idx})">✏️</button>
+                  <button class="btn-icon btn-edit-item" title="Ręczne Makro" onclick="toggleManualBox('${mealCfg.id}', ${idx})">${item.locked ? '🔒' : '✏️'}</button>
                   <button class="btn-icon btn-remove" onclick="removeItem('${mealCfg.id}', ${idx})">✕</button>
                 </div>
                 
@@ -601,15 +616,28 @@
                   <span>T: ${Math.round(item.f || 0)}g</span>
                   <span>W: ${Math.round(item.c || 0)}g</span>
                   <span>Bł: ${Math.round(item.fib || 0)}g</span>
-                  ${item.manual ? '<span style="color:var(--warning)">[Ręczne]</span>' : ''}
+                  ${item.locked ? '<span style="color:var(--accent)">[Baza]</span>' : item.manual ? '<span style="color:var(--warning)">[Ręczne]</span>' : ''}
                 </div>
 
                 <div class="manual-override-box" id="manual-box-${mealCfg.id}-${idx}">
-                  <div><label style="font-size:9px;color:var(--text-muted)">Kcal</label><input type="number" value="${item.kcal || ''}" onchange="updateItemMacro('${mealCfg.id}', ${idx}, 'kcal', this.value)"></div>
-                  <div><label style="font-size:9px;color:var(--text-muted)">Białko</label><input type="number" value="${item.p || ''}" onchange="updateItemMacro('${mealCfg.id}', ${idx}, 'p', this.value)"></div>
-                  <div><label style="font-size:9px;color:var(--text-muted)">Tłuszcz</label><input type="number" value="${item.f || ''}" onchange="updateItemMacro('${mealCfg.id}', ${idx}, 'f', this.value)"></div>
-                  <div><label style="font-size:9px;color:var(--text-muted)">Węgle</label><input type="number" value="${item.c || ''}" onchange="updateItemMacro('${mealCfg.id}', ${idx}, 'c', this.value)"></div>
-                  <div><label style="font-size:9px;color:var(--text-muted)">Błonnik</label><input type="number" value="${item.fib || ''}" onchange="updateItemMacro('${mealCfg.id}', ${idx}, 'fib', this.value)"></div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">Ręczne definiowanie wzorca makro:</div>
+                  <div class="manual-override-inputs">
+                    <div><label style="font-size:8px;color:var(--text-muted)">Baz. Ilość</label><input type="number" id="m-base-amt-${mealCfg.id}-${idx}" value="${item.baseAmount || item.amount || 100}"></div>
+                    <div><label style="font-size:8px;color:var(--text-muted)">Jednostka</label>
+                      <select id="m-base-unit-${mealCfg.id}-${idx}">
+                        ${UNITS.map(u => `<option value="${u}" ${(item.unit || 'g') === u ? 'selected' : ''}>${u}</option>`).join('')}
+                      </select>
+                    </div>
+                    <div><label style="font-size:8px;color:var(--text-muted)">Kcal</label><input type="number" id="m-kcal-${mealCfg.id}-${idx}" value="${item.kcal || ''}"></div>
+                    <div><label style="font-size:8px;color:var(--text-muted)">Białko</label><input type="number" id="m-p-${mealCfg.id}-${idx}" value="${item.p || ''}"></div>
+                    <div><label style="font-size:8px;color:var(--text-muted)">Tłuszcz</label><input type="number" id="m-f-${mealCfg.id}-${idx}" value="${item.f || ''}"></div>
+                    <div><label style="font-size:8px;color:var(--text-muted)">Węgle</label><input type="number" id="m-c-${mealCfg.id}-${idx}" value="${item.c || ''}"></div>
+                    <div><label style="font-size:8px;color:var(--text-muted)">Błonnik</label><input type="number" id="m-fib-${mealCfg.id}-${idx}" value="${item.fib || ''}"></div>
+                  </div>
+                  <div style="display: flex; gap: 4px; margin-top: 4px;">
+                    <button class="btn btn-sm" style="flex: 1;" onclick="applyManualOverride('${mealCfg.id}', ${idx})">Zastosuj</button>
+                    <button class="btn btn-sm" style="flex: 1; background: var(--success);" onclick="saveToPresetsFromManual('${mealCfg.id}', ${idx})">💾 Zapisz do bazy</button>
+                  </div>
                 </div>
               </div>
             `).join('')}
@@ -638,25 +666,154 @@
 
     function toggleManualBox(mealId, idx) {
       const box = document.getElementById(`manual-box-${mealId}-${idx}`);
-      box.style.display = box.style.display === 'grid' ? 'none' : 'grid';
+      box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
     }
 
-    function updateItemMacro(mealId, idx, field, val) {
-      state.meals[mealId][idx][field] = parseFloat(val) || 0;
-      state.meals[mealId][idx].manual = true;
+    function applyManualOverride(mealId, idx) {
+      const baseAmt = parseFloat(document.getElementById(`m-base-amt-${mealId}-${idx}`).value) || 100;
+      const baseUnit = document.getElementById(`m-base-unit-${mealId}-${idx}`).value;
+      const kcal = parseFloat(document.getElementById(`m-kcal-${mealId}-${idx}`).value) || 0;
+      const p = parseFloat(document.getElementById(`m-p-${mealId}-${idx}`).value) || 0;
+      const f = parseFloat(document.getElementById(`m-f-${mealId}-${idx}`).value) || 0;
+      const c = parseFloat(document.getElementById(`m-c-${mealId}-${idx}`).value) || 0;
+      const fib = parseFloat(document.getElementById(`m-fib-${mealId}-${idx}`).value) || 0;
+
+      const currentItem = state.meals[mealId][idx];
+      currentItem.baseAmount = baseAmt;
+      currentItem.unit = baseUnit;
+      currentItem.kcal = kcal;
+      currentItem.p = p;
+      currentItem.f = f;
+      currentItem.c = c;
+      currentItem.fib = fib;
+      currentItem.manual = true;
+      currentItem.locked = false;
+
       renderMeals();
     }
 
-    function updateItem(mealId, idx, field, value) {
-      state.meals[mealId][idx][field] = field === 'amount' ? parseFloat(value) || '' : value;
-      if (field === 'name' && value) {
-        saveNewIngredientName(value);
+    function saveToPresetsFromManual(mealId, idx) {
+      const item = state.meals[mealId][idx];
+      const name = item.name.trim();
+
+      if (!name) {
+        alert("Wpisz najpierw nazwę składnika!");
+        return;
       }
-      localStorage.setItem('daily_meals_data', JSON.stringify(state.meals));
+
+      const baseAmt = parseFloat(document.getElementById(`m-base-amt-${mealId}-${idx}`).value) || 100;
+      const baseUnit = document.getElementById(`m-base-unit-${mealId}-${idx}`).value;
+      const kcal = parseFloat(document.getElementById(`m-kcal-${mealId}-${idx}`).value) || 0;
+      const p = parseFloat(document.getElementById(`m-p-${mealId}-${idx}`).value) || 0;
+      const f = parseFloat(document.getElementById(`m-f-${mealId}-${idx}`).value) || 0;
+      const c = parseFloat(document.getElementById(`m-c-${mealId}-${idx}`).value) || 0;
+      const fib = parseFloat(document.getElementById(`m-fib-${mealId}-${idx}`).value) || 0;
+
+      state.savedPresets[name.toLowerCase()] = {
+        name: name,
+        baseAmount: baseAmt,
+        unit: baseUnit,
+        kcal: kcal,
+        p: p,
+        f: f,
+        c: c,
+        fib: fib
+      };
+
+      localStorage.setItem('saved_presets_db', JSON.stringify(state.savedPresets));
+      saveNewIngredientName(name);
+
+      // Przelicz bieżącą pozycję na wzorzec
+      item.presetKey = name.toLowerCase();
+      item.locked = true;
+      item.unit = baseUnit;
+      item.baseAmount = baseAmt;
+      
+      recalculateItemByPreset(item);
+      renderMeals();
+      alert(`Zapisano "${name}" w podręcznej bazie!`);
+    }
+
+    function recalculateItemByPreset(item) {
+      if (!item.presetKey || !state.savedPresets[item.presetKey]) return;
+      const preset = state.savedPresets[item.presetKey];
+
+      const currentAmt = parseFloat(item.amount) || 0;
+      const ratio = preset.baseAmount > 0 ? (currentAmt / preset.baseAmount) : 0;
+
+      item.kcal = Math.round(preset.kcal * ratio);
+      item.p = Math.round(preset.p * ratio * 10) / 10;
+      item.f = Math.round(preset.f * ratio * 10) / 10;
+      item.c = Math.round(preset.c * ratio * 10) / 10;
+      item.fib = Math.round(preset.fib * ratio * 10) / 10;
+    }
+
+    function updateItem(mealId, idx, field, value) {
+      const item = state.meals[mealId][idx];
+
+      if (field === 'amount') {
+        item.amount = parseFloat(value) || '';
+        if (item.locked && item.presetKey) {
+          recalculateItemByPreset(item);
+        }
+      } else if (field === 'name') {
+        item.name = value;
+        item.locked = false;
+        item.presetKey = null;
+        if (value) saveNewIngredientName(value);
+      } else if (field === 'unit') {
+        item.unit = value;
+      }
+
+      renderMeals();
+    }
+
+    function openPresetsModal(mealId, idx) {
+      activeTargetPicker = { mealId, idx };
+      const presetsList = document.getElementById('presets-list');
+      const keys = Object.keys(state.savedPresets);
+
+      if (keys.length === 0) {
+        presetsList.innerHTML = `<div style="text-align: center; font-size: 12px; color: var(--text-muted); padding: 12px;">Brak zapisanych składników. Dodaj składnik ręcznie i kliknij "Zapisz do bazy".</div>`;
+      } else {
+        presetsList.innerHTML = keys.map(k => {
+          const p = state.savedPresets[k];
+          return `
+            <div class="history-card-item" onclick="selectPresetItem('${k}')" style="cursor:pointer; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: bold; font-size: 13px; color: var(--text);">${p.name}</div>
+                <div style="font-size: 10px; color: var(--text-muted);">${p.baseAmount} ${p.unit} ➔ ${p.kcal} kcal | B:${p.p}g T:${p.f}g W:${p.c}g | Bł:${p.fib}g</div>
+              </div>
+              <button class="btn btn-sm" style="width: auto; padding: 4px 8px;">Wybierz</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      openModal('presets-modal');
+    }
+
+    function selectPresetItem(presetKey) {
+      if (!activeTargetPicker) return;
+      const { mealId, idx } = activeTargetPicker;
+      const preset = state.savedPresets[presetKey];
+
+      if (preset && state.meals[mealId][idx]) {
+        const item = state.meals[mealId][idx];
+        item.name = preset.name;
+        item.unit = preset.unit;
+        item.locked = true;
+        item.presetKey = presetKey;
+        if (!item.amount) item.amount = preset.baseAmount;
+
+        recalculateItemByPreset(item);
+        renderMeals();
+        closeModal('presets-modal');
+      }
     }
 
     function addItem(mealId) {
-      state.meals[mealId].push({ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false });
+      state.meals[mealId].push({ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false });
       renderMeals();
     }
 
@@ -664,20 +821,20 @@
       if (state.meals[mealId].length > 1) {
         state.meals[mealId].splice(idx, 1);
       } else {
-        state.meals[mealId][0] = { name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false };
+        state.meals[mealId][0] = { name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false };
       }
       renderMeals();
     }
 
     function resetSingleMeal(mealId) {
-      state.meals[mealId] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false }];
+      state.meals[mealId] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false }];
       renderMeals();
     }
 
     function resetWholeDay() {
       if (confirm("Czy na pewno chcesz wyczyścić wszystkie wpisane dziś posiłki?")) {
         MEALS_CONFIG.forEach(m => {
-          state.meals[m.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false }];
+          state.meals[m.id] = [{ name: '', amount: '', unit: 'g', kcal: 0, p: 0, f: 0, c: 0, fib: 0, manual: false, locked: false }];
         });
         renderMeals();
       }
@@ -846,7 +1003,7 @@
       let itemsToAnalyze = [];
       MEALS_CONFIG.forEach(meal => {
         state.meals[meal.id].forEach((item, idx) => {
-          if (item.name && item.amount && !item.manual) {
+          if (item.name && item.amount && !item.manual && !item.locked) {
             saveNewIngredientName(item.name);
             itemsToAnalyze.push({ mealId: meal.id, idx: idx, query: `${item.amount} ${item.unit} ${item.name}` });
           }
