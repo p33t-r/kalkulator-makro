@@ -184,6 +184,9 @@
     .history-card-item { background: #0f172a; padding: 8px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--card-border); }
     .history-card-item:hover { border-color: var(--accent); }
 
+    .preset-action-btns { display: flex; gap: 4px; align-items: center; }
+    .preset-edit-box { display: none; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--card-border); }
+
     .loading { display: none; text-align: center; font-size: 13px; color: var(--accent); margin-top: 10px; }
 
     @media (max-width: 380px) {
@@ -353,7 +356,10 @@
   <div class="modal" id="presets-modal">
     <div class="modal-content">
       <h3>Zapisane Składniki w Pamięci</h3>
-      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Wybierz składnik ze zdefiniowanym makro:</p>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Wybierz, edytuj lub usuń składnik ze zdefiniowanym makro:</p>
+      
+      <input type="text" id="preset-search-input" placeholder="🔍 Szukaj składnika w bazie..." oninput="filterPresetsList()" style="margin-bottom: 10px;">
+
       <div id="presets-list"></div>
       <button class="btn" style="width: 100%; margin-top: 10px; background: transparent; border: 1px solid var(--card-border);" onclick="closeModal('presets-modal')">Zamknij</button>
     </div>
@@ -413,13 +419,13 @@
       targets: JSON.parse(localStorage.getItem('macro_targets')) || { kcal: 2000, p: 150, f: 70, c: 200, fib: 30 },
       meals: JSON.parse(localStorage.getItem('daily_meals_data')) || {},
       customIngredients: JSON.parse(localStorage.getItem('custom_ingredients_list')) || [],
-      savedPresets: JSON.parse(localStorage.getItem('saved_presets_db')) || {}, // nowa baza danych zapamiętanych makroskładników
+      savedPresets: JSON.parse(localStorage.getItem('saved_presets_db')) || {},
       mealsHistory: JSON.parse(localStorage.getItem('meals_history')) || [],
       dailyHistory: JSON.parse(localStorage.getItem('daily_history')) || []
     };
 
     let activeHistoryMealId = null;
-    let activeTargetPicker = null; // { mealId, idx }
+    let activeTargetPicker = null;
 
     function getTodayDateString() {
       const today = new Date();
@@ -723,7 +729,6 @@
       localStorage.setItem('saved_presets_db', JSON.stringify(state.savedPresets));
       saveNewIngredientName(name);
 
-      // Przelicz bieżącą pozycję na wzorzec
       item.presetKey = name.toLowerCase();
       item.locked = true;
       item.unit = baseUnit;
@@ -768,29 +773,148 @@
       renderMeals();
     }
 
+    /* === PRZETWARZANIE I EDYCJA BAZY PODRĘCZNEJ === */
     function openPresetsModal(mealId, idx) {
       activeTargetPicker = { mealId, idx };
+      document.getElementById('preset-search-input').value = '';
+      renderPresetsList();
+      openModal('presets-modal');
+    }
+
+    function filterPresetsList() {
+      renderPresetsList();
+    }
+
+    function renderPresetsList() {
       const presetsList = document.getElementById('presets-list');
-      const keys = Object.keys(state.savedPresets);
+      const searchQuery = (document.getElementById('preset-search-input').value || '').toLowerCase().trim();
+      let keys = Object.keys(state.savedPresets);
+
+      if (searchQuery) {
+        keys = keys.filter(k => {
+          const p = state.savedPresets[k];
+          return p.name.toLowerCase().includes(searchQuery);
+        });
+      }
 
       if (keys.length === 0) {
-        presetsList.innerHTML = `<div style="text-align: center; font-size: 12px; color: var(--text-muted); padding: 12px;">Brak zapisanych składników. Dodaj składnik ręcznie i kliknij "Zapisz do bazy".</div>`;
-      } else {
-        presetsList.innerHTML = keys.map(k => {
-          const p = state.savedPresets[k];
-          return `
-            <div class="history-card-item" onclick="selectPresetItem('${k}')" style="cursor:pointer; display: flex; justify-content: space-between; align-items: center;">
-              <div>
+        presetsList.innerHTML = `<div style="text-align: center; font-size: 12px; color: var(--text-muted); padding: 12px;">Brak pasujących składników w bazie.</div>`;
+        return;
+      }
+
+      presetsList.innerHTML = keys.map(k => {
+        const p = state.savedPresets[k];
+        return `
+          <div class="history-card-item">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div onclick="selectPresetItem('${k}')" style="cursor:pointer; flex: 1;">
                 <div style="font-weight: bold; font-size: 13px; color: var(--text);">${p.name}</div>
                 <div style="font-size: 10px; color: var(--text-muted);">${p.baseAmount} ${p.unit} ➔ ${p.kcal} kcal | B:${p.p}g T:${p.f}g W:${p.c}g | Bł:${p.fib}g</div>
               </div>
-              <button class="btn btn-sm" style="width: auto; padding: 4px 8px;">Wybierz</button>
+              <div class="preset-action-btns">
+                <button class="btn btn-sm" style="width: auto; padding: 4px 6px;" onclick="selectPresetItem('${k}')">Wybierz</button>
+                <button class="btn-icon btn-edit-item" style="padding: 4px 6px; font-size: 13px;" title="Edytuj" onclick="togglePresetEditBox('${k}')">✏️</button>
+                <button class="btn-icon btn-remove" style="padding: 4px 6px; font-size: 13px;" title="Usuń z bazy" onclick="deletePresetItem('${k}')">🗑️</button>
+              </div>
             </div>
-          `;
-        }).join('');
+
+            <div class="preset-edit-box" id="preset-edit-box-${k.replace(/\s+/g, '_')}">
+              <div style="font-size: 10px; color: var(--text-muted);">Edycja wzorca w bazie:</div>
+              <div class="manual-override-inputs">
+                <div><label style="font-size:8px;color:var(--text-muted)">Nazwa</label><input type="text" id="pe-name-${k}" value="${p.name}"></div>
+                <div><label style="font-size:8px;color:var(--text-muted)">Baz. Ilość</label><input type="number" id="pe-amt-${k}" value="${p.baseAmount}"></div>
+                <div><label style="font-size:8px;color:var(--text-muted)">Jednostka</label>
+                  <select id="pe-unit-${k}">
+                    ${UNITS.map(u => `<option value="${u}" ${p.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
+                  </select>
+                </div>
+                <div><label style="font-size:8px;color:var(--text-muted)">Kcal</label><input type="number" id="pe-kcal-${k}" value="${p.kcal}"></div>
+                <div><label style="font-size:8px;color:var(--text-muted)">Białko</label><input type="number" id="pe-p-${k}" value="${p.p}"></div>
+                <div><label style="font-size:8px;color:var(--text-muted)">Tłuszcz</label><input type="number" id="pe-f-${k}" value="${p.f}"></div>
+                <div><label style="font-size:8px;color:var(--text-muted)">Węgle</label><input type="number" id="pe-c-${k}" value="${p.c}"></div>
+              </div>
+              <div style="display: flex; gap: 4px; margin-top: 4px;">
+                <button class="btn btn-sm" style="flex: 1;" onclick="savePresetEdit('${k}')">Zapisz zmiany 💾</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function togglePresetEditBox(key) {
+      const safeKey = key.replace(/\s+/g, '_');
+      const box = document.getElementById(`preset-edit-box-${safeKey}`);
+      if (box) {
+        box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+      }
+    }
+
+    function savePresetEdit(oldKey) {
+      const newName = document.getElementById(`pe-name-${oldKey}`).value.trim();
+      if (!newName) {
+        alert("Nazwa nie może być pusta!");
+        return;
       }
 
-      openModal('presets-modal');
+      const newBaseAmt = parseFloat(document.getElementById(`pe-amt-${oldKey}`).value) || 100;
+      const newUnit = document.getElementById(`pe-unit-${oldKey}`).value;
+      const newKcal = parseFloat(document.getElementById(`pe-kcal-${oldKey}`).value) || 0;
+      const newP = parseFloat(document.getElementById(`pe-p-${oldKey}`).value) || 0;
+      const newF = parseFloat(document.getElementById(`pe-f-${oldKey}`).value) || 0;
+      const newC = parseFloat(document.getElementById(`pe-c-${oldKey}`).value) || 0;
+
+      const newKey = newName.toLowerCase();
+
+      delete state.savedPresets[oldKey];
+
+      state.savedPresets[newKey] = {
+        name: newName,
+        baseAmount: newBaseAmt,
+        unit: newUnit,
+        kcal: newKcal,
+        p: newP,
+        f: newF,
+        c: newC,
+        fib: state.savedPresets[oldKey] ? state.savedPresets[oldKey].fib : 0
+      };
+
+      localStorage.setItem('saved_presets_db', JSON.stringify(state.savedPresets));
+      saveNewIngredientName(newName);
+
+      // Zaktualizuj aktywne pozycje na liście
+      MEALS_CONFIG.forEach(m => {
+        state.meals[m.id].forEach(item => {
+          if (item.presetKey === oldKey) {
+            item.presetKey = newKey;
+            item.name = newName;
+            item.unit = newUnit;
+            recalculateItemByPreset(item);
+          }
+        });
+      });
+
+      renderMeals();
+      renderPresetsList();
+    }
+
+    function deletePresetItem(key) {
+      if (confirm(`Czy na pewno chcesz usunąć "${state.savedPresets[key]?.name || key}" z bazy zapamiętanych składników?`)) {
+        delete state.savedPresets[key];
+        localStorage.setItem('saved_presets_db', JSON.stringify(state.savedPresets));
+        
+        MEALS_CONFIG.forEach(m => {
+          state.meals[m.id].forEach(item => {
+            if (item.presetKey === key) {
+              item.locked = false;
+              item.presetKey = null;
+            }
+          });
+        });
+
+        renderMeals();
+        renderPresetsList();
+      }
     }
 
     function selectPresetItem(presetKey) {
