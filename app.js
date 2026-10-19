@@ -550,9 +550,9 @@
                 <div style="font-size: 10px; color: var(--text-muted); word-break: break-word;">${p.baseAmount} ${p.unit} ➔ ${p.kcal} kcal | B:${p.p}g T:${p.f}g W:${p.c}g | Bł:${p.fib}g</div>
               </div>
               <div class="preset-action-btns">
-                <button class="btn btn-sm" style="width: auto; padding: 4px 6px;" onclick="selectPresetItem('${k}')">Wybierz</button>
-                <button class="btn-icon btn-edit-item" style="padding: 4px 6px; font-size: 13px;" title="Edytuj" onclick="togglePresetEditBox('${k}')">✏️</button>
-                <button class="btn-icon btn-remove" style="padding: 4px 6px; font-size: 13px;" title="Usuń z bazy" onclick="deletePresetItem('${k}')">🗑️</button>
+                <button class="btn-icon btn-preset-pick" style="padding: 4px 6px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none;" title="Wybierz" onclick="selectPresetItem('${k}')">➕</button>
+                <button class="btn-icon btn-edit-item" style="padding: 4px 6px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;" title="Edytuj" onclick="togglePresetEditBox('${k}')">✏️</button>
+                <button class="btn-icon btn-remove" style="padding: 4px 6px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;" title="Usuń z bazy" onclick="deletePresetItem('${k}')">🗑️</button>
               </div>
             </div>
 
@@ -715,13 +715,14 @@
         return `
           <div class="history-card-item">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-              <div style="flex: 1; min-width: 0;">
+              <div onclick="selectPresetItem('${k}')" style="cursor:pointer; flex: 1; min-width: 0;">
                 <div style="font-weight: bold; font-size: 13px; color: var(--text); word-break: break-word;">${p.name}</div>
                 <div style="font-size: 10px; color: var(--text-muted); word-break: break-word;">${p.baseAmount} ${p.unit} ➔ ${p.kcal} kcal | B:${p.p}g T:${p.f}g W:${p.c}g | Bł:${p.fib}g</div>
               </div>
               <div class="preset-action-btns">
-                <button class="btn-icon btn-edit-item" style="padding: 4px 6px; font-size: 13px;" title="Edytuj" onclick="toggleAiPresetEditBox('${k}')">✏️</button>
-                <button class="btn-icon btn-remove" style="padding: 4px 6px; font-size: 13px;" title="Usuń z bazy AI" onclick="deleteAiPresetItem('${k}')">🗑️</button>
+                <button class="btn-icon btn-preset-pick" style="padding: 4px 6px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none;" title="Wybierz" onclick="selectPresetItem('${k}')">➕</button>
+                <button class="btn-icon btn-edit-item" style="padding: 4px 6px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;" title="Edytuj" onclick="toggleAiPresetEditBox('${k}')">✏️</button>
+                <button class="btn-icon btn-remove" style="padding: 4px 6px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;" title="Usuń z bazy AI" onclick="deleteAiPresetItem('${k}')">🗑️</button>
               </div>
             </div>
 
