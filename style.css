@@ -222,7 +222,13 @@
     .history-card-item { background: #0f172a; padding: 8px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--card-border); width: 100%; box-sizing: border-box; }
     .history-card-item:hover { border-color: var(--accent); }
 
-    .preset-action-btns { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+    .preset-action-btns { 
+      display: flex; 
+      gap: 4px; 
+      align-items: center; 
+      flex-shrink: 0; 
+      flex-wrap: nowrap;
+    }
     .preset-edit-box { display: none; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--card-border); }
 
     .loading { display: none; text-align: center; font-size: 13px; color: var(--accent); margin-top: 10px; }
@@ -239,5 +245,5 @@
       .item-main-row { grid-template-columns: minmax(70px, 2fr) 22px minmax(40px, 1fr) minmax(45px, 1fr) 18px 18px; }
       .manual-macro-grid { grid-template-columns: repeat(2, 1fr); }
       .manual-override-inputs { grid-template-columns: repeat(4, 1fr); }
-      .preset-action-btns { flex-direction: column; align-items: stretch; gap: 3px; }
+      .preset-action-btns { flex-direction: row !important; align-items: center !important; gap: 2px !important; }
     }
